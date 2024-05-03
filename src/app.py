@@ -46,54 +46,70 @@ def handle_hello():
 
     return jsonify(response_body), 200
 
-#---------------------------------------------------------------------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------------------------------------------∨ ∨ ∨ ∨ ∨ ∨ ∨ ∨ ∨ ∨
 
+# need to enter user id as request body:
+@app.route("/users/favorites/", methods=["GET"])
+def get_favorites():
+    user_id = request.get_json().get("id")
+    user = db.session.querry(User).filter_by(id = user_id)
+    if not user: return jsonify(f"User {user_id} not found."), 404
+    return jsonify(user.serialize_favorites())
 
-#[GET] /users/favorites Get all the favorites
-#[POST] /favorite/planet/<int:planet_id> Add a new favorite planet
-#[POST] /favorite/people/<int: people_id> Add a new favorite person
-#[DELETE] / favorite/planet/<int:planet_id> Delete a favorite planet
-#[DELETE] / favorite/people/<int:people_id> Delete a favorite person
+# need to enter user id as request body:
+@app.route("/favorite/<string:type>/<string: obj_id>/", methods=["POST", "DELETE"])
+def generic_actions(type, obj_id):
 
-#add (POST), update (PUT), and delete (DELETE) planets and people
+    if type == "plaet":
+        model_type = UserPlanetFavorite
+        ids = {"planet_id": obj_id}
+    elif type == "people":
+        model_type = UserCharacterFavorite
+        ids = {"character_id": obj_id}
+    else: return jsonify({"msg": "No favorites with that name found"}), 404
 
-#model_type = User if type = “users” else Planet if type = “planets” else Character if type = “people” else UserPlanetFavorite if type = “favorite_planes” else  UserCharacterFavorite if type = “favorite_people” else False
+    data = request.get_json()["id"] or request.get_json()["user_id"]
+    if not data: return jsonify({"Error": "No user id was provided"}), 400
+    ids["user_id"] = data
 
+    if request.method == "POST":
+        return meth.add(model_type, ids)
 
-#[GET] /users/favorites
+    elif request.method == "DELETE":
+        return meth.delete(model_type, ids)
 
-#[POST]/favorite/<string: fav>/<string: obj_id> + data(user id)
-#[DELETE]/favorite/<string: fav>/<string: obj_id> + data(user id)
+@app.route("/<string:type>/", defaults={'obj_id': None}, methods=["GET", "POST", "PUT", "DELETE"])
+@app.route("/<string:type>/<string:obj_id>/", methods=["GET", "POST", "DELETE", "PUT"])
+def generic_actions(type, obj_id):
 
-#Get all: [GET] /<string: type>/
+    model_mapping = {
+        "users": User,
+        "planets": Planet,
+        "people": Character,
+        "favorite_planets": UserPlanetFavorite,
+        "favorite_people": UserCharacterFavorite
+    }
+    model_type = model_mapping.get(type)
+    if not model_type: return jsonify({"msg": "No table with that name found"}), 404
 
-#Add: [POST] /<string: type>/<string: obj_id> + data
-#Update: [PUT] /<string: type>/<string: obj_id> + data
-#Delete: [DELETE] /<string: type>/<string: obj_id>
-#Get one: [GET] /<string: type>/<string: obj_id>
-
-
-@app.route(" /<string: type>/<string: obj_id> ", methods=["GET", "POST", "DELETE", "PUT"])
-def generic_actions():
     data = request.get_json() or {}
-    if obj_id is not "none": data["id"] = obj_id
-#i don't know if i should do the if here or in models: <-------------------------------------------------------------------------<<<<<<<<<
+    if obj_id: data["id"] = obj_id
+
     if request.method == "GET":
-        if data["id"]:
-            return meth.get_all(type)
-        meth.get_one(type, )
+        return meth.get(model_type, data)
 
     elif request.method == "POST":
-        data = request.get_json()
-        return jsonify({"message": "Received POST request", "data": data})
+        return meth.add(model_type, data)
 
-    #elif request.method == "DELETE":
+    elif request.method == "DELETE":
+        return meth.delete(model_type, data)
 
-    #elif request.method == "PUT":
+    elif request.method == "PUT":
+        return meth.update(model_type, data)
 
 
 
-#---------------------------------------------------------------------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------------------------------------------∧ ∧ ∧ ∧ ∧ ∧ ∧ ∧ ∧ ∧
 
 @app.route('/users')
 def list_users():

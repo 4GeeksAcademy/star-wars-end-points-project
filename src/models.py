@@ -31,6 +31,11 @@ class User(db.Model):
             "name": self.name,
             "is_active": self.is_active
         }
+    def serialize_favorites(self):
+        return{
+        "favorite_planets": [planet.serialize() for planet in self.favorite_planets],
+        "favorite_characters": [character.serialize() for character in self.favorite_characters]
+        }
 
 class Planet(db.Model):
     __tablename__ = 'planets'
@@ -80,11 +85,23 @@ class UserPlanetFavorite(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key=True)
     planet_id = db.Column(db.Integer, db.ForeignKey('planets.id'), primary_key=True)
 
+    def serialize(self):
+        return{
+        "User:": [user.serialize() for user in self.user_id],
+        "Planet in favorites:": [planet.serialize() for planet in self.planet_id]
+        }
+
 class UserCharacterFavorite(db.Model):
     __tablename__ = 'user_character_favorites'
 
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key=True)
     character_id = db.Column(db.Integer, db.ForeignKey('characters.id'), primary_key=True)
+
+    def serialize(self):
+        return{
+        "User:": [user.serialize() for user in self.user_id],
+        "Person in favorites:": [character.serialize() for character in self.character_id]
+        }
 
 
 # methods:
@@ -115,7 +132,7 @@ def delete(model_type, data):
 def update(model_type, data):
     oopsie = db.session.query(model_type).filter_by(id = data["id"]).first()
     if not oopsie:
-        return jsonify(f"{data.get("name")} not found in {model_type.__name__}."), 404
+        return jsonify(f"{data.get('name')} not found in {model_type.__name__}."), 404
     try:
         for key, value in data.items():
             setattr(oopsie, key, value)
@@ -125,20 +142,20 @@ def update(model_type, data):
         db.session.rollback()
         return jsonify(f"Error updating {model_type.__name__}: {str(e)}."), 400
 
-def get_all(model_type):
+def get(model_type, data):
+    if "id" in data:
+        individual = db.query(model_type).filter_by(id = data["id"]).first
+        if not individual:
+            return jsonify(f"{model_type} {data['id']} not found."), 404
+        return jsonify(individual.serialize())
     society = db.session.query(model_type).all()
     if not society:
         return jsonify(f"Table {model_type.__name__} not found."), 404
     return jsonify([item.serialize() for item in society])
 
-def get_one():
-    pass
-
-
 meth = {
     "add": add,
     "delete": delete,
     "update": update,
-    "get_all": get_all,
-    "get_one": get_one
+    "get": get
 }
