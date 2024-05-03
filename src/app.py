@@ -9,8 +9,6 @@ from flask_cors import CORS
 from utils import APIException, generate_sitemap
 from admin import setup_admin
 from models import db, User, Planet, Character, UserPlanetFavorite, UserCharacterFavorite, meth
-#from models import Person
-
 
 app = Flask(__name__)
 app.url_map.strict_slashes = False
@@ -24,6 +22,8 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 MIGRATE = Migrate(app, db)
 db.init_app(app)
+with app.app_context():
+    db.create_all()
 CORS(app)
 setup_admin(app)
 
@@ -36,6 +36,7 @@ def handle_invalid_usage(error):
 @app.route('/')
 def sitemap():
     return generate_sitemap(app)
+
 
 @app.route('/user', methods=['GET'])
 def handle_hello():
@@ -51,16 +52,16 @@ def handle_hello():
 # need to enter user id as request body:
 @app.route("/users/favorites/", methods=["GET"])
 def get_favorites():
-    user_id = request.get_json().get("id")
-    user = db.session.querry(User).filter_by(id = user_id)
+    user_id = request.get_json(force=True).get("id")
+    user = db.session.query(User).filter_by(id = user_id)
     if not user: return jsonify(f"User {user_id} not found."), 404
     return jsonify(user.serialize_favorites())
 
 # need to enter user id as request body:
-@app.route("/favorite/<string:type>/<string: obj_id>/", methods=["POST", "DELETE"])
+@app.route("/favorite/<string:type>/<string:obj_id>/", methods=["POST", "DELETE"])
 def generic_actions(type, obj_id):
 
-    if type == "plaet":
+    if type == "planet":
         model_type = UserPlanetFavorite
         ids = {"planet_id": obj_id}
     elif type == "people":
@@ -68,7 +69,7 @@ def generic_actions(type, obj_id):
         ids = {"character_id": obj_id}
     else: return jsonify({"msg": "No favorites with that name found"}), 404
 
-    data = request.get_json()["id"] or request.get_json()["user_id"]
+    data = request.get_json(force=True).get("id") or request.get_json(force=True).get("id")
     if not data: return jsonify({"Error": "No user id was provided"}), 400
     ids["user_id"] = data
 
@@ -78,8 +79,8 @@ def generic_actions(type, obj_id):
     elif request.method == "DELETE":
         return meth.delete(model_type, ids)
 
-@app.route("/<string:type>/", defaults={'obj_id': None}, methods=["GET", "POST", "PUT", "DELETE"])
-@app.route("/<string:type>/<string:obj_id>/", methods=["GET", "POST", "DELETE", "PUT"])
+@app.route("/<string:type>/", defaults={'obj_id': None}, methods=["GET", "POST", "PUT", "DELETE"], endpoint="without_id")
+@app.route("/<string:type>/<string:obj_id>/", methods=["GET", "POST", "DELETE", "PUT"], endpoint="with_id")
 def generic_actions(type, obj_id):
 
     model_mapping = {
@@ -92,7 +93,7 @@ def generic_actions(type, obj_id):
     model_type = model_mapping.get(type)
     if not model_type: return jsonify({"msg": "No table with that name found"}), 404
 
-    data = request.get_json() or {}
+    data = request.get_json(force=True) or {}
     if obj_id: data["id"] = obj_id
 
     if request.method == "GET":
@@ -114,10 +115,10 @@ def generic_actions(type, obj_id):
 @app.route('/users')
 def list_users():
     users = User.query.all()
-    return '\n'.join([user.username for user in users])
+    return jsonify([user.serialize() for user in users])
 
 
 # this only runs if `$ python src/app.py` is executed
 if __name__ == '__main__':
     PORT = int(os.environ.get('PORT', 3000))
-    app.run(host='0.0.0.0', port=PORT, debug=False)
+    app.run(host='0.0.0.0', port=PORT, debug=True)

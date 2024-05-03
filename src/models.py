@@ -82,8 +82,8 @@ class Character(db.Model):
 class UserPlanetFavorite(db.Model):
     __tablename__ = 'user_planet_favorites'
 
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key=True)
-    planet_id = db.Column(db.Integer, db.ForeignKey('planets.id'), primary_key=True)
+    user_id = db.Column(db.String, db.ForeignKey('users.id'), primary_key=True)
+    planet_id = db.Column(db.String, db.ForeignKey('planets.id'), primary_key=True)
 
     def serialize(self):
         return{
@@ -94,15 +94,15 @@ class UserPlanetFavorite(db.Model):
 class UserCharacterFavorite(db.Model):
     __tablename__ = 'user_character_favorites'
 
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key=True)
-    character_id = db.Column(db.Integer, db.ForeignKey('characters.id'), primary_key=True)
+    user_id = db.Column(db.String, db.ForeignKey('users.id'), primary_key=True)
+    character_id = db.Column(db.String, db.ForeignKey('characters.id'), primary_key=True)
 
     def serialize(self):
         return{
         "User:": [user.serialize() for user in self.user_id],
         "Person in favorites:": [character.serialize() for character in self.character_id]
         }
-
+    
 
 # methods:
 
@@ -151,6 +151,7 @@ def get(model_type, data):
     society = db.session.query(model_type).all()
     if not society:
         return jsonify(f"Table {model_type.__name__} not found."), 404
+    print("we're about to return")
     return jsonify([item.serialize() for item in society])
 
 meth = {
