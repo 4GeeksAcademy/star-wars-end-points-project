@@ -80,7 +80,7 @@ def generic_actions(type, obj_id):
         return meth.delete(model_type, ids)
 
 @app.route("/<string:type>/", defaults={'obj_id': None}, methods=["GET", "POST", "PUT", "DELETE"], endpoint="without_id")
-@app.route("/<string:type>/<string:obj_id>/", methods=["GET", "POST", "DELETE", "PUT"], endpoint="with_id")
+#@app.route("/<string:type>/<string:obj_id>/", methods=["GET", "POST", "DELETE", "PUT"], endpoint="with_id")
 def generic_actions(type, obj_id):
 
     model_mapping = {
@@ -114,7 +114,7 @@ def generic_actions(type, obj_id):
 
 @app.route('/users')
 def list_users():
-    users = User.query.all()
+    users = db.session.query(User).all()
     return jsonify([user.serialize() for user in users])
 
 

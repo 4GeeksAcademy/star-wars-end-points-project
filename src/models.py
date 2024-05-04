@@ -14,12 +14,12 @@ class User(db.Model):
     __tablename__ = 'users'
 
     id = db.Column(db.String(6), primary_key=True, default=generate_id)
-    email = db.Column(db.String, nullable=False)
-    name = db.Column(db.String, nullable=False)
-    password = db.Column(db.String, nullable=False)
-    is_active = db.Column(db.Boolean(), unique=False, nullable=False)
-    favorite_planets = db.relationship('Planet', secondary='user_planet_favorites')
-    favorite_characters = db.relationship('Character', secondary='user_character_favorites')
+    email = db.Column(db.String(120), nullable=False)
+    name = db.Column(db.String(120), nullable=False)
+    password = db.Column(db.String(120), nullable=False)
+    is_active = db.Column(db.Boolean(), unique=False, nullable=False, default=True) 
+    favorite_planets = db.relationship('Planet', secondary='user_planet_favorites', backref='favorited_by')
+    favorite_characters = db.relationship('Character', secondary='user_character_favorites', backref='favorited_by')
 
     def __repr__(self):
         return f"User {self.name}, Id: {self.id}"
@@ -85,10 +85,17 @@ class UserPlanetFavorite(db.Model):
     user_id = db.Column(db.String, db.ForeignKey('users.id'), primary_key=True)
     planet_id = db.Column(db.String, db.ForeignKey('planets.id'), primary_key=True)
 
+    user = db.relationship('User', backref=db.backref('planet_favorites', cascade='all, delete-orphan'))
+    planet = db.relationship('Planet', backref=db.backref('user_favorites', cascade='all, delete-orphan'))
+
+
     def serialize(self):
         return{
         "User:": [user.serialize() for user in self.user_id],
-        "Planet in favorites:": [planet.serialize() for planet in self.planet_id]
+        "Planet in favorites:": [planet.serialize() for planet in self.planet_id],
+
+        "User": self.user.name,
+        "Planet in favorites": self.planet.name
         }
 
 class UserCharacterFavorite(db.Model):
@@ -97,12 +104,17 @@ class UserCharacterFavorite(db.Model):
     user_id = db.Column(db.String, db.ForeignKey('users.id'), primary_key=True)
     character_id = db.Column(db.String, db.ForeignKey('characters.id'), primary_key=True)
 
+    user = db.relationship('User', backref=db.backref('character_favorites', cascade='all, delete-orphan'))
+    character = db.relationship('Character', backref=db.backref('user_favorites', cascade='all, delete-orphan'))
+
     def serialize(self):
         return{
         "User:": [user.serialize() for user in self.user_id],
-        "Person in favorites:": [character.serialize() for character in self.character_id]
+        "Person in favorites:": [character.serialize() for character in self.character_id],
+
+        "User": self.user.name,
+        "Character in favorites": self.character.name
         }
-    
 
 # methods:
 
